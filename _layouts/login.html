@@ -1,9 +1,11 @@
 ---
 layout: default
 ---
+<div id="data" data-src="{{ site.api_url }}">
 <script>
     function passwordCheck(){
         var raw = document.getElementById('passwordField').value;
+        var api = document.getElementById('data').getAttribute('data-src');
         
     }
 </script>
