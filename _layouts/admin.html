@@ -1,0 +1,40 @@
+---
+layout: default
+---
+<script>
+    firebase.auth().onAuthStateChanged((user) => {
+        if(!user){
+            window.location.replace('../login');
+        }
+    });
+
+    function test(){
+        firebase.auth().currentUser.getIdToken(true).then(function(idToken) {
+            var req = new XMLHttpRequest();
+            req.onload = function(){
+                const res = req.responseText;
+                console.log(res);
+            }.bind(this);
+            req.onerror = function(){ console.error('Unexpected Error'); }.bind(this);
+            req.open('POST','https://asia-northeast1-plummmm-s-blog.cloudfunctions.net/auth/newpost',true);
+            req.setRequestHeader('Authorization', 'Bearer ' + idToken);
+            req.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
+            var txt = document.getElementById('textf').value;
+            var tt = document.getElementById('titlef').value;
+            req.send(JSON.stringify({body: txt, title: tt}));
+        });
+    }
+</script>
+<article class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">{{ page.title | escape }}</h1>
+  </header>
+
+  <div class="post-content">
+    <input type="text" id="titlef">
+    <input type="text" id="textf">
+    <button onclick="test()">Test</button>
+  </div>
+
+</article>

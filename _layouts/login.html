@@ -1,31 +1,17 @@
 ---
 layout: default
 ---
-<script src="https://www.gstatic.com/firebasejs/5.8.3/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/5.8.3/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/5.8.3/firebase-functions.js"></script>
 <script>
-    // Initialize Firebase
-    var config = {
-        apiKey: "AIzaSyAGy8DFYi8dZ5TP25Ryrt6-pAsBifnXTi0",
-        authDomain: "plummmm-s-blog.firebaseapp.com",
-        databaseURL: "https://plummmm-s-blog.firebaseio.com",
-        projectId: "plummmm-s-blog",
-        storageBucket: "plummmm-s-blog.appspot.com",
-        messagingSenderId: "1056763582089"
-    };
-    firebase.initializeApp(config);
-</script>
-<script>
-    function passwordCheck(){
+    firebase.auth().onAuthStateChanged((user) => {
+        if(user){
+            window.location.replace('../admin');
+        }
+    });
+   function passwordCheck(){
 	var email = document.getElementById('emailField').value;
         var password = document.getElementById('passwordField').value;
         firebase.auth().signInWithEmailAndPassword(email, password).then((user) => {
-        user.user.getIdToken(true).then(function(idToken){
-                // Send idToken to functions
-            }).catch(function(error){
-                console.log(error);
-            });
+            window.location.replace('../admin');
         }).catch(function(error){
             var errorCode = error.code;
             var errorMessage = error.message;

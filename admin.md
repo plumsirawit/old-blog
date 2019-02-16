@@ -1,5 +1,5 @@
 ---
-layout: login
+layout: admin
 title: Admin
 permalink: /admin/
 ---

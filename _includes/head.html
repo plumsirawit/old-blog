@@ -8,4 +8,19 @@
   {%- if jekyll.environment == 'production' and site.google_analytics -%}
     {%- include google-analytics.html -%}
   {%- endif -%}
+  <script src="https://www.gstatic.com/firebasejs/5.8.3/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/5.8.3/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/5.8.3/firebase-functions.js"></script>
+  <script>
+    // Initialize Firebase
+    var config = {
+      apiKey: "AIzaSyAGy8DFYi8dZ5TP25Ryrt6-pAsBifnXTi0",
+      authDomain: "plummmm-s-blog.firebaseapp.com",
+      databaseURL: "https://plummmm-s-blog.firebaseio.com",
+      projectId: "plummmm-s-blog",
+      storageBucket: "plummmm-s-blog.appspot.com",
+      messagingSenderId: "1056763582089"
+    };
+    firebase.initializeApp(config);
+  </script>
 </head>
