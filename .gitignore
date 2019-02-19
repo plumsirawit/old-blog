@@ -1,4 +1,4 @@
 _site
 .sass-cache
 .jekyll-metadata
-backend/config.py
+functions/keys.js

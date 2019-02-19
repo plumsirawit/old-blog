@@ -21,7 +21,8 @@ layout: default
             req.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
             var txt = document.getElementById('textf').value;
             var tt = document.getElementById('titlef').value;
-            req.send(JSON.stringify({body: txt, title: tt}));
+            var ctt = document.getElementById('codetitlef').value;
+            req.send(JSON.stringify({body: encodeURI(txt), title: encodeURI(tt), codetitle: encodeURI(ctt)}));
         });
     }
 </script>
@@ -32,6 +33,7 @@ layout: default
   </header>
 
   <div class="post-content">
+    <input type="text" id="codetitlef">
     <input type="text" id="titlef">
     <input type="text" id="textf">
     <button onclick="test()">Test</button>

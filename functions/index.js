@@ -5,14 +5,16 @@ const express = require('express');
 const cookieParser = require('cookie-parser')();
 const cors = require('cors')({origin: true});
 const app = express();
-var Git = require('nodegit');
+const fse = require('fs-extra');
+const Git = require('nodegit');
+const keys = require('./keys');
 const auth = (req, res, next) => {
 	var token;
 	if(req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
 		token = req.headers.authorization.split('Bearer ')[1];
 	}else{
 		console.error('No Firebase ID token found');
-		res.status(403).send('Unauthorized');
+		res.status(401).send('Unauthorized');
 		return;
 	}
 	admin.auth().verifyIdToken(token)
@@ -21,7 +23,7 @@ const auth = (req, res, next) => {
 			return next();
 		}).catch((error) => {
 			console.error('Error while verifying Firebase ID token:', error);
-			res.status(403).send('Unauthorized');
+			res.status(401).send('Unauthorized');
 		});
 };
 
@@ -47,13 +49,87 @@ function getFormattedDate(){
 	var dateString = year + '-' + month + '-' + date + ' ' + hour + ':' + mins + ':' + secs + ' +0700';
 	return dateString;
 }
+function getFormattedDateOnly(){
+	var cdate = new Date();
+	var ofs = Math.round(-cdate.getTimezoneOffset()/60);
+	cdate = new Date(cdate.getTime() + (7-ofs) * 3600000);
+	var year = cdate.getFullYear();
+	var month = zfill((cdate.getMonth() + 1).toString());
+	var date = zfill(cdate.getDate().toString());
+	var retString = year + '-' + month + '-' + date;
+	return retString;
+}
 app.post('/newpost', (req,res) => {
 	var dateString = getFormattedDate();
-	var template = "---\nlayout: post\ntitle: \"Test\"\ndate: " + dateString + "\ncategories: test\n---\n" + req.body.body;
-	console.log(req.body);
-	Git.Clone('https://github.com/s6007589/s6007589.github.io','/tmp/blog');
-	var regex = "/^([a-zA-Z])|([a-zA-Z][a-zA-Z0-9-]*[a-zA-Z])$/gm"
-	res.status(200).send(template);
+	var title = decodeURI(req.body.title);
+	var body = decodeURI(req.body.body);
+	var codeTitle = decodeURI(req.body.codetitle);
+	var template = "---\nlayout: post\ntitle: \"" + title + "\"\ndate: " + dateString + "\ncategories: test\n---\n" + body;
+	var codeRegex = /^[a-zA-Z0-9]$|^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]$/g;
+	if(!codeRegex.test(codeTitle)){
+		res.status(406).send('Code Title does not match regex (starts and ends with alphanumeric character and may contains alphanumeric or hyphen)');
+		return;	
+	}
+	if(fse.existsSync('/tmp/blog')){
+		fse.removeSync('/tmp/blog');
+	}
+	var dateOnlyString = getFormattedDateOnly();
+	var repo;
+	var index;
+	var oid;
+	var remote;
+	var cred;
+	return Git.Clone('https://github.com/s6007589/s6007589.github.io','/tmp/blog')
+		.then(function(repoRes){
+			repo = repoRes;
+			fse.outputFileSync('/tmp/blog/_posts/'+dateOnlyString+'-'+codeTitle+'.markdown', body, 'utf8');
+			return repo.refreshIndex();
+		})
+		.then(function(indexRes){
+			index = indexRes;
+			return index.addByPath('/tmp/blog/_posts/'+dateOnlyString+'-'+codeTitle+'.markdown');
+		})
+		.then(function(){
+			index.write();
+		})
+		.then(function(){
+			index.writeTree();
+		})
+		.then(function(oidRes){
+			oid = oidRes;
+			return Git.Reference.nameToId(repo, "HEAD");
+		})
+		.then(function(head){
+			return repo.getCommit(head);
+		})
+		.then(function(parent){
+			var author = Git.Signature.now("Sirawit Pongnakintr", "s6007589@mwit.ac.th");
+			return repo.createCommit("HEAD", author, author, "Test", oid, [parent]);
+		})
+		.then(function(commitId){
+			console.log(commitId);
+			res.status(201).send(template);
+		})
+		.then(function(){
+			return Git.Remote.lookup(repo,"origin");
+		})
+		.then(function(remoteRes){
+			remote = remoteRes;
+			return Git.Cred.sshKeyMemoryNew('s6007589', keys.publicKey, keys.privateKey, '');
+		})
+		.then(function(credRes){
+			cred = credRes;
+			return remote.push(
+				["refs/heads/master:refs/heads/master"],
+				{
+					callbacks: {
+						credentials: function(url, username) {
+							return cred;
+						}
+					}
+				}
+			);
+		})
 });
 app.post('/newdraft', (req,res) => {
 
