@@ -7,7 +7,11 @@ const cors = require('cors')({origin: true});
 const app = express();
 const fse = require('fs-extra');
 const Git = require('nodegit');
-const keys = require('./keys');
+const path = require('path');
+const local = path.join.bind(path, __dirname);
+const publicKeyPath = local('key.pub');
+const privateKeyPath = local('key');
+const clonePath = path.join('/tmp','blog');
 const auth = (req, res, next) => {
 	var token;
 	if(req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
@@ -70,55 +74,75 @@ app.post('/newpost', (req,res) => {
 		res.status(406).send('Code Title does not match regex (starts and ends with alphanumeric character and may contains alphanumeric or hyphen)');
 		return;	
 	}
-	if(fse.existsSync('/tmp/blog')){
-		fse.removeSync('/tmp/blog');
+	if(fse.existsSync(clonePath)){
+		fse.removeSync(clonePath);
 	}
 	var dateOnlyString = getFormattedDateOnly();
 	var repo;
 	var index;
 	var oid;
 	var remote;
-	var cred;
-	return Git.Clone('https://github.com/s6007589/s6007589.github.io','/tmp/blog')
+	var cred = Git.Cred.sshKeyNew('s6007589', publicKeyPath, privateKeyPath, '');
+	console.log(cred);
+	console.log(clonePath);
+	console.log(publicKeyPath);
+	console.log(privateKeyPath);
+	console.log(fse.readFileSync(publicKeyPath,'utf8'));
+	return Git.Clone('git@github.com:s6007589/s6007589.github.io.git',clonePath,
+		{
+			fetchOpts: {
+				callbacks: {
+					certificateCheck: function() {
+						return 1;
+					},
+					credentials: function(url, userName) {
+						return cred;
+					}
+				}
+			}
+		})
 		.then(function(repoRes){
+			console.log('Clone finished');
 			repo = repoRes;
-			fse.outputFileSync('/tmp/blog/_posts/'+dateOnlyString+'-'+codeTitle+'.markdown', body, 'utf8');
+			fse.outputFileSync(path.join(clonePath,'_posts',dateOnlyString+'-'+codeTitle+'.markdown'), body, 'utf8');
 			return repo.refreshIndex();
 		})
 		.then(function(indexRes){
+			console.log('Refreshed Index');
 			index = indexRes;
-			return index.addByPath('/tmp/blog/_posts/'+dateOnlyString+'-'+codeTitle+'.markdown');
+			return index.addByPath(path.join(clonePath,'_posts',dateOnlyString+'-'+codeTitle+'.markdown'));
 		})
 		.then(function(){
+			console.log('Added Post');
 			index.write();
 		})
 		.then(function(){
+			console.log('Finished Writing Index');
 			index.writeTree();
 		})
 		.then(function(oidRes){
+			console.log('Finished Writing Tree');
 			oid = oidRes;
 			return Git.Reference.nameToId(repo, "HEAD");
 		})
 		.then(function(head){
+			console.log('Gotten name to ID');
 			return repo.getCommit(head);
 		})
 		.then(function(parent){
+			console.log('Gotten Head Commit');
 			var author = Git.Signature.now("Sirawit Pongnakintr", "s6007589@mwit.ac.th");
 			return repo.createCommit("HEAD", author, author, "Test", oid, [parent]);
 		})
 		.then(function(commitId){
+			console.log('Committed');
 			console.log(commitId);
-			res.status(201).send(template);
 		})
 		.then(function(){
 			return Git.Remote.lookup(repo,"origin");
 		})
 		.then(function(remoteRes){
 			remote = remoteRes;
-			return Git.Cred.sshKeyMemoryNew('s6007589', keys.publicKey, keys.privateKey, '');
-		})
-		.then(function(credRes){
-			cred = credRes;
 			return remote.push(
 				["refs/heads/master:refs/heads/master"],
 				{
@@ -130,6 +154,12 @@ app.post('/newpost', (req,res) => {
 				}
 			);
 		})
+		.then(function(){
+			res.status(201).send(template);
+		})
+		.catch(function(error){
+			res.status(503).send(error);
+		});
 });
 app.post('/newdraft', (req,res) => {
 

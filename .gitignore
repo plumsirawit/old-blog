@@ -2,3 +2,5 @@ _site
 .sass-cache
 .jekyll-metadata
 functions/keys.js
+functions/key
+functions/key.pub
